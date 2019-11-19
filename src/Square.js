@@ -1,5 +1,6 @@
 import React from "react";
 import { PropTypes } from "prop-types";
+import Bacteria from "./Bacteria";
 
 function Square(props) {
   const styles = {
@@ -8,20 +9,26 @@ function Square(props) {
     height: 20,
     border: ".25px solid black"
   };
+  const bac = props.bacteria.find(
+    bac => bac.locationX === props.params.x && bac.locationY === props.params.y
+  );
+
   return (
     <div
       onClick={() => console.log(props.params.x + " " + props.params.y)}
       style={styles}
-    ></div>
+    >
+      {bac && !bac.end && <Bacteria bacteria={bac} />}
+    </div>
   );
 }
 
 Square.propTypes = {
   params: PropTypes.object,
-  bacteria: PropTypes.object
+  bacteria: PropTypes.arrayOf(PropTypes.object)
 };
 
 Square.defaultProps = {
-  bacteria: {}
+  bacteria: null
 };
 export default Square;
