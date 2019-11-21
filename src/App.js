@@ -6,7 +6,7 @@ import { Button } from "react-bootstrap";
 
 // CONSTANTS FOR MATH
 const e = 2.71828;
-const D = 8;
+const D = 10;
 
 class App extends React.Component {
   constructor() {
@@ -27,8 +27,17 @@ class App extends React.Component {
         { goal: "RX-green", input: "lmnop" },
         { goal: "RX-blue", input: "vwxyz" }
       ],
-      bacteria: []
+      bacteria: [],
+      results: [
+        { goal: "RX-red", output: "" },
+        { goal: "RX-green", output: "" },
+        { goal: "RX-blue", output: "" }
+      ]
     };
+  }
+
+  componentDidMount() {
+    this.boardGen();
   }
 
   // MATH HELPERS
@@ -51,18 +60,20 @@ class App extends React.Component {
   };
   // EMD MATH HELPERS
 
-  componentDidMount() {
-    this.boardGen();
-  }
-
   boardGen = () => {
     let colors = [];
     let temp = [];
     const n = this.state.squareSize * this.state.squareSize + 1;
     const nSqr = this.state.squareSize;
     let row = 0;
+
     for (let i = 1; i < n; i++) {
+      if (row === 0 && i === 21) {
+        console.log(i + " " + row + " " + nSqr);
+      }
+
       if (row === 0 && i === 1) {
+        // TX
         temp.push({
           r: 0,
           g: 0,
@@ -99,8 +110,8 @@ class App extends React.Component {
           r: 0,
           g: 0,
           b: 0,
-          x: row,
-          y: i % nSqr === 0 ? 14 : (i % nSqr) - 1
+          x: i % nSqr === 0 ? nSqr - 1 : (i % nSqr) - 1,
+          y: row
         });
       }
 
@@ -131,12 +142,14 @@ class App extends React.Component {
       ? this.setState({ inputN: n, error: "" })
       : this.ERRORTEXT("Invalid N");
   };
+
   changeQ = q => {
     var reg = new RegExp("^[0-9]+$");
     reg.test(q) || q === ""
       ? this.setState({ inputQ: q, error: "" })
       : this.ERRORTEXT("Invalid Q");
   };
+
   ERRORTEXT = text => {
     this.setState({ error: text });
   };
@@ -154,8 +167,8 @@ class App extends React.Component {
     }
     this.setState({ payload: payload });
   };
-
   // STATE CHANGES END
+
   notTXorRX = (x, y) => {
     let good = true;
     this.state.RX.forEach(rec => {
@@ -172,36 +185,38 @@ class App extends React.Component {
   setSquaresAtR = (colors, concen, r, Rx) => {
     let x = 0; // COlUMN
     let y = 0; // ROW
-    if (Rx.x === 0 && Rx.y === 0) {
-      // top left
-      y = r;
-      while (y >= 0) {
-        if (this.notTXorRX(x, y)) {
-          colors[y][x].r += concen;
-        }
-        x += 1;
-        y -= 1;
-      }
-    } else if (Rx.x === this.state.squareSize - 1 && Rx.y === 0) {
+    // if (Rx.x === 0 && Rx.y === 0) {
+    //   // top left
+    //   y = r;
+    //   while (y >= 0) {
+    //     if (this.notTXorRX(x, y)) {
+    //       colors[y][x].r =
+    //         colors[y][x].r + concen >= 256 ? 255 : colors[y][x].r + concen;
+    //     }
+    //     x += 1;
+    //     y -= 1;
+    //   }
+    // }
+    if (Rx.x === this.state.squareSize - 1 && Rx.y === 0) {
       // Top Right
-
       y = r;
       x = this.state.squareSize - 1;
       while (y >= 0) {
         if (this.notTXorRX(x, y)) {
-          colors[y][x].r += concen;
+          colors[y][x].r =
+            colors[y][x].r + concen >= 256 ? 255 : colors[y][x].r + concen;
         }
         x -= 1;
         y -= 1;
       }
     } else if (Rx.x === 0 && Rx.y === this.state.squareSize - 1) {
       // Bottom left
-
       y = this.state.squareSize - 1;
       x = r;
       while (x >= 0) {
         if (this.notTXorRX(x, y)) {
-          colors[y][x].b += concen;
+          colors[y][x].b =
+            colors[y][x].b + concen >= 256 ? 255 : colors[y][x].b + concen;
         }
         x -= 1;
         y -= 1;
@@ -215,7 +230,8 @@ class App extends React.Component {
       x = this.state.squareSize - r - 1;
       while (x <= this.state.squareSize - 1) {
         if (this.notTXorRX(x, y)) {
-          colors[y][x].g += concen;
+          colors[y][x].g =
+            colors[y][x].g + concen >= 256 ? 255 : colors[y][x].g + concen;
         }
         x += 1;
         y -= 1;
@@ -243,7 +259,7 @@ class App extends React.Component {
     let { colors } = this.state;
     this.state.RX.forEach(rec => {
       for (let i = 1; i < this.state.squareSize; i++) {
-        const concen = this.getDiffusedConcentration(i, this.state.time);
+        let concen = this.getDiffusedConcentration(i, this.state.time);
         colors = this.setSquaresAtR(colors, concen, i, rec);
       }
     });
@@ -319,23 +335,53 @@ class App extends React.Component {
       bacteria.push(this.createBacteria());
     }
     const newBac = bacteria.map(bac => {
+      if (bac.end) {
+        return bac;
+      }
       if (
         bac.color === "RX-red" &&
         bac.locationX === this.state.RX[2].x &&
         bac.locationY === this.state.RX[2].y
       ) {
-        return { ...bac, end: this.state.time };
-      } else if (
-        bac.color === "RX-blue" &&
-        bac.locationX === this.state.RX[1].x &&
-        bac.locationY === this.state.RX[1].y
-      ) {
+        this.setState({
+          results: [
+            ...this.state.results,
+            {
+              ...this.state.results[0],
+              output: (this.state.results[0].output += bac.payload)
+            }
+          ]
+        });
         return { ...bac, end: this.state.time };
       } else if (
         bac.color === "RX-green" &&
+        bac.locationX === this.state.RX[1].x &&
+        bac.locationY === this.state.RX[1].y
+      ) {
+        this.setState({
+          results: [
+            ...this.state.results,
+            {
+              ...this.state.results[1],
+              output: (this.state.results[1].output += bac.payload)
+            }
+          ]
+        });
+        return { ...bac, end: this.state.time };
+      } else if (
+        bac.color === "RX-blue" &&
         bac.locationX === this.state.RX[0].x &&
         bac.locationY === this.state.RX[0].y
       ) {
+        this.setState({
+          results: [
+            ...this.state.results,
+            {
+              ...this.state.results[2],
+              output: (this.state.results[2].output += bac.payload)
+            }
+          ]
+        });
         return { ...bac, end: this.state.time };
       } else {
         const rgb = this.checkNeighborBacteria(bac);
@@ -358,16 +404,34 @@ class App extends React.Component {
     this.bacteriaStep();
   };
 
+  simRun = async () => {
+    for (let i = 0; i < 500; i++) {
+      this.simIteration();
+      await this.sleep(3000);
+    }
+  };
+
+  sleep = ms => {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  };
+
   render() {
     return (
       <div
-        style={{ display: "flex", flexDirection: "column", flex: 1 }}
+        style={{ display: "flex", flexDirection: "row", flex: 1 }}
         className='App'
       >
-        <div style={{ display: "flex", flex: 0.3, flexDirection: "column" }}>
+        <div
+          style={{
+            display: "flex",
+            flex: 0.3,
+            flexDirection: "column",
+            marginRight: 15
+          }}
+        >
           <p>{this.state.error}</p>
           <input
-            style={{ margin: 1 }}
+            style={{ margin: 1, borderColor: "red" }}
             type='text'
             name='r-val'
             placeholder='RX-red'
@@ -376,7 +440,7 @@ class App extends React.Component {
             onChange={n => this.payloadChange("RX-red", n.target.value)}
           />
           <input
-            style={{ margin: 1 }}
+            style={{ margin: 1, borderColor: "green" }}
             type='text'
             name='g-val'
             placeholder='RX-green'
@@ -385,7 +449,7 @@ class App extends React.Component {
             onChange={q => this.payloadChange("RX-green", q.target.value)}
           />
           <input
-            style={{ margin: 1 }}
+            style={{ margin: 1, borderColor: "blue" }}
             type='text'
             name='b-val'
             placeholder='RX-blue'
@@ -395,6 +459,9 @@ class App extends React.Component {
           />
           <Button style={{ margin: 1 }} onClick={() => this.simIteration()}>
             STEP
+          </Button>
+          <Button style={{ margin: 1 }} onClick={() => this.simRun()}>
+            Run Whole Simulation
           </Button>
           <input
             style={{ margin: 1 }}
@@ -427,9 +494,49 @@ class App extends React.Component {
           >
             Update/Reset Channel
           </Button>
+          <p
+            style={{
+              color: this.state.payload[0].input.includes(
+                this.state.results[0].output
+              )
+                ? "green"
+                : "red"
+            }}
+          >
+            RX-red output: {this.state.results[0].output}
+          </p>
+          <p
+            style={{
+              color: this.state.payload[1].input.includes(
+                this.state.results[1].output
+              )
+                ? "green"
+                : "red"
+            }}
+          >
+            RX-green output: {this.state.results[1].output}
+          </p>
+          <p
+            style={{
+              color: this.state.payload[2].input.includes(
+                this.state.results[2].output
+              )
+                ? "green"
+                : "red"
+            }}
+          >
+            RX-blue output: {this.state.results[2].output}
+          </p>
         </div>
 
-        <div style={{ justifyContent: "center", alignItems: "center" }}>
+        <div
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            flex: 1,
+            margin: 30
+          }}
+        >
           {this.state.colors.map(color => (
             <Row row={color} bacteria={this.state.bacteria} />
           ))}
