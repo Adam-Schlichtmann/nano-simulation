@@ -35,7 +35,8 @@ class App extends React.Component {
         { goal: "RX-blue", output: "" }
       ],
       BER: [],
-      done: false
+      done: false,
+      averageTimes: []
     };
   }
 
@@ -156,6 +157,12 @@ class App extends React.Component {
 
   ERRORTEXT = text => {
     this.setState({ error: text });
+  };
+
+  changeReleaseRate = text => {
+    text > 0 || text === ""
+      ? this.setState({ releaseRate: text, error: "" })
+      : this.ERRORTEXT("VALUE MUST BE GREATER THAN 0");
   };
 
   payloadChange = (rx, val) => {
@@ -340,6 +347,7 @@ class App extends React.Component {
     }, 0);
     if (!done && this.state.bacteria.length === bacReleased) {
       this.bitERR();
+      this.avgTime();
       this.setState({ done: true });
       return;
     }
@@ -448,6 +456,30 @@ class App extends React.Component {
     this.setState({ BER: r });
   };
 
+  avgTime = () => {
+    const { bacteria } = this.state;
+    const r = bacteria.map(b => ({ ...b, time: b.end - b.start }));
+    const red = r.filter(b => b.color === "RX-red");
+    const redTotal = red.reduce(function(acc, obj) {
+      return acc + obj.time;
+    }, 0);
+    const green = r.filter(b => b.color === "RX-green");
+    const greenTotal = green.reduce(function(acc, obj) {
+      return acc + obj.time;
+    }, 0);
+    const blue = r.filter(b => b.color === "RX-blue");
+    const blueTotal = blue.reduce(function(acc, obj) {
+      return acc + obj.time;
+    }, 0);
+    this.setState({
+      averageTimes: [
+        redTotal / red.length,
+        greenTotal / green.length,
+        blueTotal / blue.length
+      ]
+    });
+  };
+
   render() {
     return (
       <div
@@ -457,55 +489,122 @@ class App extends React.Component {
         <div
           style={{
             display: "flex",
-            flex: 0.3,
+            flex: 0.2,
             flexDirection: "column",
-            marginRight: 15
+            marginHorizontal: 15
           }}
         >
           <p>{this.state.error}</p>
-          <input
-            style={{ margin: 1, borderColor: "red" }}
-            type='text'
-            name='r-val'
-            placeholder='RX-red'
-            value={this.state.payload[0].input}
-            disabled={this.state.time > 0}
-            onChange={n => this.payloadChange("RX-red", n.target.value)}
-          />
-          <input
-            style={{ margin: 1, borderColor: "green" }}
-            type='text'
-            name='g-val'
-            placeholder='RX-green'
-            value={this.state.payload[1].input}
-            disabled={this.state.time > 0}
-            onChange={q => this.payloadChange("RX-green", q.target.value)}
-          />
-          <input
-            style={{ margin: 1, borderColor: "blue" }}
-            type='text'
-            name='b-val'
-            placeholder='RX-blue'
-            value={this.state.payload[2].input}
-            disabled={this.state.time > 0}
-            onChange={n => this.payloadChange("RX-blue", n.target.value)}
-          />
-          <input
-            style={{ margin: 1 }}
-            type='text'
-            name='n-value'
-            placeholder='enter a value for n'
-            value={this.state.inputN}
-            onChange={n => this.changeN(n.target.value)}
-          />
-          <input
-            style={{ margin: 1 }}
-            type='text'
-            name='n-value'
-            placeholder='enter a value for q'
-            value={this.state.inputQ}
-            onChange={q => this.changeQ(q.target.value)}
-          />
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between"
+            }}
+          >
+            <p>Red Payload</p>
+            <input
+              style={{
+                margin: 1,
+                borderColor: "red",
+                justifyContent: "space-between"
+              }}
+              type='text'
+              name='r-val'
+              placeholder='RX-red'
+              value={this.state.payload[0].input}
+              disabled={this.state.time > 0}
+              onChange={n => this.payloadChange("RX-red", n.target.value)}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between"
+            }}
+          >
+            <p>Green Payload</p>
+            <input
+              style={{ margin: 1, borderColor: "green" }}
+              type='text'
+              name='g-val'
+              placeholder='RX-green'
+              value={this.state.payload[1].input}
+              disabled={this.state.time > 0}
+              onChange={q => this.payloadChange("RX-green", q.target.value)}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between"
+            }}
+          >
+            <p>Blue Payload</p>
+            <input
+              style={{ margin: 1, borderColor: "blue" }}
+              type='text'
+              name='b-val'
+              placeholder='RX-blue'
+              value={this.state.payload[2].input}
+              disabled={this.state.time > 0}
+              onChange={n => this.payloadChange("RX-blue", n.target.value)}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between"
+            }}
+          >
+            <p>Release Rate</p>
+            <input
+              style={{ margin: 1 }}
+              type='text'
+              name='releaseRate'
+              placeholder='enter a release rate'
+              value={this.state.releaseRate}
+              disabled={this.state.time > 0}
+              onChange={n => this.changeReleaseRate(n.target.value)}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between"
+            }}
+          >
+            <p>Board size</p>
+            <input
+              style={{ margin: 1 }}
+              type='text'
+              name='n-value'
+              placeholder='enter a value for n'
+              value={this.state.inputN}
+              onChange={n => this.changeN(n.target.value)}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between"
+            }}
+          >
+            <p>Q-value</p>
+            <input
+              style={{ margin: 1 }}
+              type='text'
+              name='q-value'
+              placeholder='enter a value for q'
+              value={this.state.inputQ}
+              onChange={q => this.changeQ(q.target.value)}
+            />
+          </div>
           <Button
             style={{ margin: 1 }}
             onClick={() =>
@@ -558,6 +657,7 @@ class App extends React.Component {
             RX-red output: {this.state.results[0].output}
           </p>
           {this.state.done && <p>BER: {this.state.BER[0].BER}</p>}
+          {this.state.done && <p>Average Time: {this.state.averageTimes[0]}</p>}
           <p
             style={{
               color: this.state.payload[1].input.includes(
@@ -570,6 +670,7 @@ class App extends React.Component {
             RX-green output: {this.state.results[1].output}
           </p>
           {this.state.done && <p>BER: {this.state.BER[1].BER}</p>}
+          {this.state.done && <p>Average Time: {this.state.averageTimes[1]}</p>}
           <p
             style={{
               color: this.state.payload[2].input.includes(
@@ -582,6 +683,7 @@ class App extends React.Component {
             RX-blue output: {this.state.results[2].output}
           </p>
           {this.state.done && <p>BER: {this.state.BER[2].BER}</p>}
+          {this.state.done && <p>Average Time: {this.state.averageTimes[2]}</p>}
         </div>
 
         <div
