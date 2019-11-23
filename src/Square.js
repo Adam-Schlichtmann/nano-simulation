@@ -12,10 +12,13 @@ function Square(props) {
   const bac = props.bacteria.find(
     bac => bac.locationX === props.params.x && bac.locationY === props.params.y
   );
-
   return (
     <div
-      onClick={() => console.log(props.params.x + " " + props.params.y)}
+      onClick={() =>
+        console.log(
+          `${props.params.x} ${props.params.y} ${props.params.r} ${props.params.g} ${props.params.b}`
+        )
+      }
       style={styles}
     >
       {bac && !bac.end && <Bacteria bacteria={bac} />}

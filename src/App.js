@@ -7,6 +7,26 @@ import { Button } from "react-bootstrap";
 // CONSTANTS FOR MATH
 const e = 2.71828;
 const D = 10;
+const DIRECTIONS = [
+  "right",
+  "left",
+  "down",
+  "up",
+  "diagonal-down-r",
+  "diagonal-down-l",
+  "diagonal-up-r",
+  "diagonal-up-l"
+];
+const DIRECTION_INDEXES = [
+  { name: "right", x: n => n + 1, y: n => n },
+  { name: "left", x: n => n - 1, y: n => n },
+  { name: "down", x: n => n, y: n => n + 1 },
+  { name: "up", x: n => n, y: n => n - 1 },
+  { name: "diagonal-down-r", x: n => n + 1, y: n => n + 1 },
+  { name: "diagonal-down-l", x: n => n - 1, y: n => n + 1 },
+  { name: "diagonal-up-r", x: n => n + 1, y: n => n - 1 },
+  { name: "diagonal-up-l", x: n => n - 1, y: n => n - 1 }
+];
 
 class App extends React.Component {
   constructor() {
@@ -36,7 +56,8 @@ class App extends React.Component {
       ],
       BER: [],
       done: false,
-      averageTimes: []
+      averageTimes: [],
+      baseRun: 3
     };
   }
 
@@ -153,6 +174,13 @@ class App extends React.Component {
     reg.test(q) || q === ""
       ? this.setState({ inputQ: q, error: "" })
       : this.ERRORTEXT("Invalid Q");
+  };
+
+  changeBaseRun = q => {
+    var reg = new RegExp("^[0-9]+$");
+    reg.test(q) || q === ""
+      ? this.setState({ baseRun: q, error: "" })
+      : this.ERRORTEXT("Invalid Base Run");
   };
 
   ERRORTEXT = text => {
@@ -284,6 +312,7 @@ class App extends React.Component {
   // =========================== Bacteria ===========================
 
   createBacteria = () => {
+    const directions = ["right", "down", "diagonal-down-r"];
     let released = false;
     let i = 0;
     while (!released) {
@@ -291,6 +320,7 @@ class App extends React.Component {
       const color = this.state.payload[index].goal;
       const activeBac = this.state.bacteria.filter(bac => bac.color === color);
       if (activeBac.length < this.state.payload[index].input.length) {
+        const dirIndex = this.getRandomInt(3);
         released = true;
         return {
           payload: this.state.payload[index].input[activeBac.length],
@@ -298,7 +328,10 @@ class App extends React.Component {
           locationY: this.state.TX.y,
           color: color,
           start: this.state.time,
-          end: false
+          end: false,
+          state: "run",
+          direction: directions[dirIndex],
+          stateDuration: 0
         };
       }
       i++;
@@ -337,6 +370,10 @@ class App extends React.Component {
       maxB = neighbors[i].b > maxB.b ? neighbors[i] : maxB;
     }
     return [maxR, maxG, maxB];
+  };
+
+  HofT = concen => {
+    return this.state.time;
   };
 
   bacteriaStep = () => {
@@ -406,19 +443,105 @@ class App extends React.Component {
           ]
         });
         return { ...bac, end: this.state.time };
+        // END END CONDITIONS
       } else {
-        const rgb = this.checkNeighborBacteria(bac);
-        if (bac.color === "RX-red") {
-          return { ...bac, locationX: rgb[0].x, locationY: rgb[0].y };
-        } else if (bac.color === "RX-green") {
-          return { ...bac, locationX: rgb[1].x, locationY: rgb[1].y };
-        } else if (bac.color === "RX-blue") {
-          return { ...bac, locationX: rgb[2].x, locationY: rgb[2].y };
+        if (bac.state === "run") {
+          if (bac.stateDuration > this.state.baseRun) {
+            return { ...bac, state: "tumble", stateDuration: 0 };
+          }
+          // MOVE THE BACTERIA TO NEXT SQUARE
+          const indexHelper = DIRECTION_INDEXES.find(
+            b => b.name === bac.direction
+          );
+          const newX = indexHelper.x(bac.locationX);
+          const newY = indexHelper.y(bac.locationY);
+          if (
+            newX < 0 ||
+            newX >= this.state.squareSize ||
+            newY < 0 ||
+            newY >= this.state.squareSize
+          ) {
+            return { ...bac, state: "tumble", stateDuration: 0 };
+          }
+          return {
+            ...bac,
+            stateDuration: bac.stateDuration + 1,
+            locationX: newX,
+            locationY: newY
+          };
+        } else if (bac.state === "tumble") {
+          const rgb = this.checkNeighborBacteria(bac);
+          if (this.getRandomInt(5) === 4 || bac.stateDuration > 5) {
+            if (bac.color === "RX-red") {
+              let newDirection = DIRECTION_INDEXES.find(
+                d =>
+                  d.x(bac.locationX) === rgb[0].x &&
+                  d.y(bac.locationY) === rgb[0].y
+              );
+              if (newDirection.name === bac.state) {
+                newDirection =
+                  DIRECTION_INDEXES[
+                    this.getRandomInt(DIRECTION_INDEXES.length)
+                  ];
+              }
+              return {
+                ...bac,
+                direction: newDirection.name,
+                locationX: rgb[0].x,
+                locationY: rgb[0].y,
+                state: "run",
+                stateDuration: 0
+              };
+            } else if (bac.color === "RX-green") {
+              let newDirection = DIRECTION_INDEXES.find(
+                d =>
+                  d.x(bac.locationX) === rgb[1].x &&
+                  d.y(bac.locationY) === rgb[1].y
+              );
+              if (newDirection.name === bac.state) {
+                newDirection =
+                  DIRECTION_INDEXES[
+                    this.getRandomInt(DIRECTION_INDEXES.length)
+                  ];
+              }
+              return {
+                ...bac,
+                direction: newDirection.name,
+                locationX: rgb[1].x,
+                locationY: rgb[1].y,
+                state: "run",
+                stateDuration: 0
+              };
+            } else if (bac.color === "RX-blue") {
+              let newDirection = DIRECTION_INDEXES.find(
+                d =>
+                  d.x(bac.locationX) === rgb[2].x &&
+                  d.y(bac.locationY) === rgb[2].y
+              );
+              if (newDirection.name === bac.state) {
+                newDirection =
+                  DIRECTION_INDEXES[
+                    this.getRandomInt(DIRECTION_INDEXES.length)
+                  ];
+              }
+              return {
+                ...bac,
+                direction: newDirection.name,
+                locationX: rgb[2].x,
+                locationY: rgb[2].y,
+                state: "run",
+                stateDuration: 0
+              };
+            }
+          } else {
+            return { ...bac, stateDuration: bac.stateDuration + 1 };
+          }
         } else {
           return bac;
         }
       }
     });
+
     this.setState({ bacteria: newBac });
   };
 
@@ -569,6 +692,24 @@ class App extends React.Component {
               value={this.state.releaseRate}
               disabled={this.state.time > 0}
               onChange={n => this.changeReleaseRate(n.target.value)}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between"
+            }}
+          >
+            <p>Base Run</p>
+            <input
+              style={{ margin: 1 }}
+              type='text'
+              name='basRun'
+              placeholder='enter a Base Run'
+              value={this.state.baseRun}
+              disabled={this.state.time > 0}
+              onChange={n => this.changeBaseRun(n.target.value)}
             />
           </div>
           <div
