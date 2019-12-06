@@ -33,13 +33,12 @@ class App extends React.Component {
     super();
 
     this.state = {
+      averageTimes: [],
+      bacteria: [],
+      baseRun: 3,
+      BER: [],
       colors: [],
-      TX: { x: 0, y: 0 },
-      RX: [],
-      time: 0,
-      Q: 256,
-      releaseRate: 5,
-      squareSize: 20,
+      done: false,
       error: "",
       inputN: 20,
       inputQ: 256,
@@ -48,16 +47,19 @@ class App extends React.Component {
         { goal: "RX-green", input: "lmnop" },
         { goal: "RX-blue", input: "vwxyz" }
       ],
-      bacteria: [],
+      Q: 256,
+      releaseRate: 5,
       results: [
         { goal: "RX-red", output: "" },
         { goal: "RX-green", output: "" },
         { goal: "RX-blue", output: "" }
       ],
-      BER: [],
-      done: false,
-      averageTimes: [],
-      baseRun: 3
+      RX: [],
+      squareSize: 20,
+      throughput: [],
+      time: 0,
+      TX: { x: 0, y: 0 },
+      forceReleaseOrder: true
     };
   }
 
@@ -94,10 +96,6 @@ class App extends React.Component {
     let row = 0;
 
     for (let i = 1; i < n; i++) {
-      if (row === 0 && i === 21) {
-        console.log(i + " " + row + " " + nSqr);
-      }
-
       if (row === 0 && i === 1) {
         // TX
         temp.push({
@@ -107,7 +105,7 @@ class App extends React.Component {
           x: 0,
           y: 0
         });
-      } else if (row === 0 && i === nSqr) {
+      } else if (row === 0 && i % nSqr === 0) {
         temp.push({
           r: 256,
           g: 0,
@@ -192,6 +190,9 @@ class App extends React.Component {
       ? this.setState({ releaseRate: text, error: "" })
       : this.ERRORTEXT("VALUE MUST BE GREATER THAN 0");
   };
+
+  setReleaseOrder = () =>
+    this.setState({ forceReleaseOrder: !this.state.forceReleaseOrder });
 
   payloadChange = (rx, val) => {
     const { payload } = this.state;
@@ -315,8 +316,15 @@ class App extends React.Component {
     const directions = ["right", "down", "diagonal-down-r"];
     let released = false;
     let i = 0;
+    let index = -1;
     while (!released) {
-      const index = this.getRandomInt(3);
+      if (index !== -1) {
+        index += 1;
+      } else if (this.state.forceReleaseOrder) {
+        index = this.state.bacteria.length % 3;
+      } else {
+        index = this.getRandomInt(3);
+      }
       const color = this.state.payload[index].goal;
       const activeBac = this.state.bacteria.filter(bac => bac.color === color);
       if (activeBac.length < this.state.payload[index].input.length) {
@@ -336,7 +344,7 @@ class App extends React.Component {
       }
       i++;
       if (i > 20) {
-        return;
+        break;
       }
     }
   };
@@ -385,6 +393,7 @@ class App extends React.Component {
     if (!done && this.state.bacteria.length === bacReleased) {
       this.bitERR();
       this.avgTime();
+      this.lCSUB();
       this.setState({ done: true });
       return;
     }
@@ -403,45 +412,27 @@ class App extends React.Component {
         bac.locationX === this.state.RX[2].x &&
         bac.locationY === this.state.RX[2].y
       ) {
-        this.setState({
-          results: [
-            ...this.state.results,
-            {
-              ...this.state.results[0],
-              output: (this.state.results[0].output += bac.payload)
-            }
-          ]
-        });
+        const { results } = this.state;
+        results[0].output = this.state.results[0].output += bac.payload;
+        this.setState({ results });
         return { ...bac, end: this.state.time };
       } else if (
         bac.color === "RX-green" &&
         bac.locationX === this.state.RX[1].x &&
         bac.locationY === this.state.RX[1].y
       ) {
-        this.setState({
-          results: [
-            ...this.state.results,
-            {
-              ...this.state.results[1],
-              output: (this.state.results[1].output += bac.payload)
-            }
-          ]
-        });
+        const { results } = this.state;
+        results[1].output = this.state.results[1].output += bac.payload;
+        this.setState({ results });
         return { ...bac, end: this.state.time };
       } else if (
         bac.color === "RX-blue" &&
         bac.locationX === this.state.RX[0].x &&
         bac.locationY === this.state.RX[0].y
       ) {
-        this.setState({
-          results: [
-            ...this.state.results,
-            {
-              ...this.state.results[2],
-              output: (this.state.results[2].output += bac.payload)
-            }
-          ]
-        });
+        const { results } = this.state;
+        results[2].output = this.state.results[2].output += bac.payload;
+        this.setState({ results });
         return { ...bac, end: this.state.time };
         // END END CONDITIONS
       } else {
@@ -478,7 +469,7 @@ class App extends React.Component {
                   d.x(bac.locationX) === rgb[0].x &&
                   d.y(bac.locationY) === rgb[0].y
               );
-              if (newDirection.name === bac.state) {
+              while (newDirection.name === bac.direction) {
                 newDirection =
                   DIRECTION_INDEXES[
                     this.getRandomInt(DIRECTION_INDEXES.length)
@@ -498,7 +489,7 @@ class App extends React.Component {
                   d.x(bac.locationX) === rgb[1].x &&
                   d.y(bac.locationY) === rgb[1].y
               );
-              if (newDirection.name === bac.state) {
+              while (newDirection.name === bac.direction) {
                 newDirection =
                   DIRECTION_INDEXES[
                     this.getRandomInt(DIRECTION_INDEXES.length)
@@ -518,7 +509,7 @@ class App extends React.Component {
                   d.x(bac.locationX) === rgb[2].x &&
                   d.y(bac.locationY) === rgb[2].y
               );
-              if (newDirection.name === bac.state) {
+              while (newDirection.name === bac.direction) {
                 newDirection =
                   DIRECTION_INDEXES[
                     this.getRandomInt(DIRECTION_INDEXES.length)
@@ -576,6 +567,8 @@ class App extends React.Component {
       }
       r.push({ goal: inOut[i].goal, BER: error / inOut[i].input.length });
     }
+    const temp = [r[0].BER, r[1].BER, r[2].BER];
+    console.log(temp.toString());
     this.setState({ BER: r });
   };
 
@@ -594,6 +587,13 @@ class App extends React.Component {
     const blueTotal = blue.reduce(function(acc, obj) {
       return acc + obj.time;
     }, 0);
+    console.log(
+      [
+        redTotal / red.length,
+        greenTotal / green.length,
+        blueTotal / blue.length
+      ].toString()
+    );
     this.setState({
       averageTimes: [
         redTotal / red.length,
@@ -601,6 +601,29 @@ class App extends React.Component {
         blueTotal / blue.length
       ]
     });
+  };
+
+  lCSUB = () => {
+    const { payload, results } = this.state;
+    const r = [];
+    for (let i = 0; i < results.length; i++) {
+      let substrings = [];
+      for (let j = 0; j < results[i].output.length; j++) {
+        for (let k = j + 1; k < results[i].output.length + 1; k++) {
+          substrings.push(results[i].output.slice(j, k));
+        }
+      }
+      substrings.sort((a, b) => a.length - b.length);
+      for (let p = substrings.length - 1; p >= 0; p--) {
+        if (payload[i].input.includes(substrings[p])) {
+          r.push({ goal: payload[i].goal, throughput: substrings[p].length });
+          break;
+        }
+      }
+    }
+    const temp = [r[0].throughput, r[1].throughput, r[2].throughput];
+    console.log(temp.toString());
+    this.setState({ throughput: r });
   };
 
   render() {
@@ -612,7 +635,7 @@ class App extends React.Component {
         <div
           style={{
             display: "flex",
-            flex: 0.2,
+            flex: 0.35,
             flexDirection: "column",
             marginHorizontal: 15
           }}
@@ -746,6 +769,23 @@ class App extends React.Component {
               onChange={q => this.changeQ(q.target.value)}
             />
           </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}
+          >
+            <p style={{ textAlign: "center" }}>Require Round Robin Release:</p>
+            <input
+              type='checkbox'
+              disabled={this.state.time > 0}
+              style={{ border: 4, borderColor: "green" }}
+              checked={this.state.forceReleaseOrder}
+              onChange={() => this.setReleaseOrder()}
+            />
+          </div>
           <Button
             style={{ margin: 1 }}
             onClick={() =>
@@ -762,8 +802,6 @@ class App extends React.Component {
                       RX: [],
                       time: 0,
                       error: "",
-                      inputN: 20,
-                      inputQ: 256,
                       bacteria: [],
                       results: [
                         { goal: "RX-red", output: "" },
@@ -799,6 +837,9 @@ class App extends React.Component {
           </p>
           {this.state.done && <p>BER: {this.state.BER[0].BER}</p>}
           {this.state.done && <p>Average Time: {this.state.averageTimes[0]}</p>}
+          {this.state.done && (
+            <p>Throughput: {this.state.throughput[0].throughput}</p>
+          )}
           <p
             style={{
               color: this.state.payload[1].input.includes(
@@ -812,6 +853,9 @@ class App extends React.Component {
           </p>
           {this.state.done && <p>BER: {this.state.BER[1].BER}</p>}
           {this.state.done && <p>Average Time: {this.state.averageTimes[1]}</p>}
+          {this.state.done && (
+            <p>Throughput: {this.state.throughput[1].throughput}</p>
+          )}
           <p
             style={{
               color: this.state.payload[2].input.includes(
@@ -825,6 +869,9 @@ class App extends React.Component {
           </p>
           {this.state.done && <p>BER: {this.state.BER[2].BER}</p>}
           {this.state.done && <p>Average Time: {this.state.averageTimes[2]}</p>}
+          {this.state.done && (
+            <p>Throughput: {this.state.throughput[2].throughput}</p>
+          )}
         </div>
 
         <div
@@ -845,46 +892,3 @@ class App extends React.Component {
 }
 
 export default App;
-
-// getNeighborsConcentration = node => {
-//   const neighbors = this.getNeighbors(node.x, node.y);
-//   let r = 0,
-//     g = 0,
-//     b = 0;
-//   neighbors.forEach(n => {
-//     r += n.r;
-//     g += n.g;
-//     b += n.b;
-//   });
-//   const avgR =
-//     Math.floor(r / neighbors.length) > 256
-//       ? 256
-//       : Math.floor(r / neighbors.length);
-//   const avgB =
-//     Math.floor(b / neighbors.length) > 256
-//       ? 256
-//       : Math.floor(b / neighbors.length);
-//   const avgG =
-//     Math.floor(g / neighbors.length) > 256
-//       ? 256
-//       : Math.floor(g / neighbors.length);
-
-//   return {
-//     ...node,
-//     r: avgR,
-//     g: avgG,
-//     b: avgB
-//   };
-// };
-
-// MOVE TO BEST NEIGHBORS
-// const rgb = this.checkNeighborBacteria(bac);
-// if (bac.color === "RX-red") {
-//   return { ...bac, locationX: rgb[0].x, locationY: rgb[0].y };
-// } else if (bac.color === "RX-green") {
-//   return { ...bac, locationX: rgb[1].x, locationY: rgb[1].y };
-// } else if (bac.color === "RX-blue") {
-//   return { ...bac, locationX: rgb[2].x, locationY: rgb[2].y };
-// } else {
-//   return bac;
-// }
