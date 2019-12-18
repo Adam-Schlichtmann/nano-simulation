@@ -2,6 +2,7 @@ import React from "react";
 import { PropTypes } from "prop-types";
 import Bacteria from "./Bacteria";
 
+// view for a single square
 function Square(props) {
   const styles = {
     backgroundColor: `rgb(${props.params.r}, ${props.params.g}, ${props.params.b})`,

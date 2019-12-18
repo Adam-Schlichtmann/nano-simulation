@@ -2,6 +2,7 @@ import React from "react";
 import { PropTypes } from "prop-types";
 import Square from "./Square";
 
+// View for a row of boxes
 function Row(props) {
   return (
     <div className='Row' style={{ display: "flex", flexDirection: "row" }}>

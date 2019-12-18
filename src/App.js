@@ -7,31 +7,29 @@ import { Button } from "react-bootstrap";
 // CONSTANTS FOR MATH
 const e = 2.71828;
 const D = 10;
-const DIRECTIONS = [
-  "right",
-  "left",
-  "down",
-  "up",
-  "diagonal-down-r",
-  "diagonal-down-l",
-  "diagonal-up-r",
-  "diagonal-up-l"
-];
+
+// all possible directions with their updates for x and y values as functions
 const DIRECTION_INDEXES = [
   { name: "right", x: n => n + 1, y: n => n },
-  { name: "left", x: n => n - 1, y: n => n },
-  { name: "down", x: n => n, y: n => n + 1 },
-  { name: "up", x: n => n, y: n => n - 1 },
   { name: "diagonal-down-r", x: n => n + 1, y: n => n + 1 },
+  { name: "down", x: n => n, y: n => n + 1 },
   { name: "diagonal-down-l", x: n => n - 1, y: n => n + 1 },
-  { name: "diagonal-up-r", x: n => n + 1, y: n => n - 1 },
-  { name: "diagonal-up-l", x: n => n - 1, y: n => n - 1 }
+  { name: "left", x: n => n - 1, y: n => n },
+  { name: "diagonal-up-l", x: n => n - 1, y: n => n - 1 },
+  { name: "up", x: n => n, y: n => n - 1 },
+  { name: "diagonal-up-r", x: n => n + 1, y: n => n - 1 }
 ];
+// Controls how random the tumble phase is
+// EG: When 2 bacteria will move in the optimal direction 1/2 of the time
+// When 3 " " 1/3 of the time ...
+// Reccomend 2
+const RANDOMNESS_OF_TUMBLE = 2;
 
+// MAIN
 class App extends React.Component {
   constructor() {
     super();
-
+    // State of simulation is stored here.
     this.state = {
       averageTimes: [],
       bacteria: [],
@@ -62,20 +60,22 @@ class App extends React.Component {
       forceReleaseOrder: true
     };
   }
-
+  // Life cycle method to generate a default board when the app is initially loaded
   componentDidMount() {
     this.boardGen();
   }
 
+  // ============
   // MATH HELPERS
+  // ============
   plugIn = (x, equation) => {
     return eval(equation);
   };
-
   trapezoid = (length, h1, h2) => {
     return ((h1 + h2) / 2) * length;
   };
 
+  // Integral
   integrate = (a, b, equation, stepsize) => {
     var area = 0;
     for (var i = a * 1.0; i < b; i += stepsize) {
@@ -85,9 +85,13 @@ class App extends React.Component {
     }
     return area;
   };
+  // ================
   // END MATH HELPERS
+  // ================
 
+  // ================
   // BOARD GENERATION
+  // ================
   boardGen = () => {
     let colors = [];
     let temp = [];
@@ -95,6 +99,7 @@ class App extends React.Component {
     const nSqr = this.state.squareSize;
     let row = 0;
 
+    // Creates a list of objects for creation of squares
     for (let i = 1; i < n; i++) {
       if (row === 0 && i === 1) {
         // TX
@@ -155,11 +160,19 @@ class App extends React.Component {
     });
   };
 
+  // =============
+  // End Board Gen
+  // =============
+
+  // Random Int
   getRandomInt = max => {
     return Math.floor(Math.random() * Math.floor(max));
   };
 
+  // ==========================
   // SET STATES FOR VAR CHANGES
+  // ==========================
+  // update board size N
   changeN = n => {
     var reg = new RegExp("^[0-9]+$");
     (reg.test(n) || n === "") && n < 31
@@ -167,6 +180,7 @@ class App extends React.Component {
       : this.ERRORTEXT("Invalid N");
   };
 
+  // update q value
   changeQ = q => {
     var reg = new RegExp("^[0-9]+$");
     reg.test(q) || q === ""
@@ -174,6 +188,7 @@ class App extends React.Component {
       : this.ERRORTEXT("Invalid Q");
   };
 
+  // update base run value
   changeBaseRun = q => {
     var reg = new RegExp("^[0-9]+$");
     reg.test(q) || q === ""
@@ -181,19 +196,23 @@ class App extends React.Component {
       : this.ERRORTEXT("Invalid Base Run");
   };
 
+  // error message updated, Needs to be used more
   ERRORTEXT = text => {
     this.setState({ error: text });
   };
 
+  // updated release rate value
   changeReleaseRate = text => {
     text > 0 || text === ""
       ? this.setState({ releaseRate: text, error: "" })
       : this.ERRORTEXT("VALUE MUST BE GREATER THAN 0");
   };
 
+  // toggle round robin
   setReleaseOrder = () =>
     this.setState({ forceReleaseOrder: !this.state.forceReleaseOrder });
 
+  // handle changes in payload input
   payloadChange = (rx, val) => {
     const { payload } = this.state;
     if (rx === "RX-red") {
@@ -207,10 +226,14 @@ class App extends React.Component {
     }
     this.setState({ payload: payload });
   };
+  // =================
   // STATE CHANGES END
+  // =================
 
-  // =========================== Board update ===========================
-
+  // ============
+  // Board update
+  // ============
+  // Check if square is a RX or TX
   notTXorRX = (x, y) => {
     let good = true;
     this.state.RX.forEach(rec => {
@@ -224,6 +247,7 @@ class App extends React.Component {
     return good;
   };
 
+  // Change Squares at radius R to input concentration
   setSquaresAtR = (colors, concen, r, Rx) => {
     let x = 0; // COlUMN
     let y = 0; // ROW
@@ -285,6 +309,7 @@ class App extends React.Component {
     return colors;
   };
 
+  // Get concentration at radius r and time t
   getDiffusedConcentration = (r, t) => {
     return (
       (this.state.Q / (2 * D * Math.PI * r)) *
@@ -297,27 +322,39 @@ class App extends React.Component {
     );
   };
 
+  // Main method for updating the colors
   updateColors = () => {
     let { colors } = this.state;
+    // For every RX
     this.state.RX.forEach(rec => {
+      // for every square
       for (let i = 1; i < this.state.squareSize * 2 - 3; i++) {
+        // get new concen
         let concen = this.getDiffusedConcentration(i, this.state.time);
+        // get updated colors
         colors = this.setSquaresAtR(colors, concen, i, rec);
       }
     });
-
+    // set the new values
     this.setState({ colors, time: (this.state.time += 1) });
   };
+  // ================
+  // END UPDATE BOARD
+  // ================
 
-  // =========================== END UPDATE BOARD ===========================
-  // =========================== Bacteria ===========================
-
+  // =======================
+  // Bacteria update methods
+  // =======================
+  // Creates a new bacteria with initial values
   createBacteria = () => {
+    // Default directions need to be on of the following since TX is in top left
     const directions = ["right", "down", "diagonal-down-r"];
     let released = false;
     let i = 0;
     let index = -1;
+    // Until a bacteria is released
     while (!released) {
+      // For round robin, tries to release in order else is the random int to release random bacteria
       if (index !== -1) {
         index += 1;
       } else if (this.state.forceReleaseOrder) {
@@ -339,7 +376,8 @@ class App extends React.Component {
           end: false,
           state: "run",
           direction: directions[dirIndex],
-          stateDuration: 0
+          stateDuration: 0,
+          nextDir: undefined
         };
       }
       i++;
@@ -349,6 +387,7 @@ class App extends React.Component {
     }
   };
 
+  // checks the concentration of the neighboring squares of a bacteria
   checkNeighborBacteria = bac => {
     const { colors } = this.state;
     const x = bac.locationX;
@@ -380,38 +419,46 @@ class App extends React.Component {
     return [maxR, maxG, maxB];
   };
 
-  HofT = concen => {
-    return this.state.time;
-  };
-
+  // Run a single step of the bacteria
   bacteriaStep = () => {
     const { bacteria } = this.state;
+    // See if any bacteria are !done
     const done = bacteria.find(b => !b.end);
+    // Number of bacteria that need to be released
     const bacReleased = this.state.payload.reduce(function(acc, obj) {
       return acc + obj.input.length;
     }, 0);
+    // If there are no more bacteria to be released and we are done
     if (!done && this.state.bacteria.length === bacReleased) {
+      // compute stats and end
       this.bitERR();
       this.avgTime();
       this.lCSUB();
       this.setState({ done: true });
       return;
     }
+    // If there are still bacteria to release and we are at a release time for bacteria
     if (
       this.state.bacteria.length < bacReleased &&
       this.state.time % this.state.releaseRate === 0
     ) {
+      // add new bacteria to bacteria list
       bacteria.push(this.createBacteria());
     }
+    // for all bacteria do the following
     const newBac = bacteria.map(bac => {
+      // if it is done do nothing
       if (bac.end) {
         return bac;
       }
+      // Check if the bacteria is at the proper receiver
+      // The following if else chain are all the same just for different receivers
       if (
         bac.color === "RX-red" &&
         bac.locationX === this.state.RX[2].x &&
         bac.locationY === this.state.RX[2].y
       ) {
+        // add the payload to the result and set the end time of the bacteria and return it
         const { results } = this.state;
         results[0].output = this.state.results[0].output += bac.payload;
         this.setState({ results });
@@ -436,16 +483,22 @@ class App extends React.Component {
         return { ...bac, end: this.state.time };
         // END END CONDITIONS
       } else {
+        // RUN and TUMBLE section
         if (bac.state === "run") {
-          if (bac.stateDuration > this.state.baseRun) {
+          // If bacteria needs to switch state
+          if (
+            bac.stateDuration + this.getRandomInt(this.state.baseRun / 2) >
+            this.state.baseRun
+          ) {
             return { ...bac, state: "tumble", stateDuration: 0 };
           }
-          // MOVE THE BACTERIA TO NEXT SQUARE
+          // MOVE THE BACTERIA TO NEXT SQUARE USING DIRECTION CONSTANTS
           const indexHelper = DIRECTION_INDEXES.find(
             b => b.name === bac.direction
           );
           const newX = indexHelper.x(bac.locationX);
           const newY = indexHelper.y(bac.locationY);
+          // If we are going to go off the board we switch to Tumble state
           if (
             newX < 0 ||
             newX >= this.state.squareSize ||
@@ -454,6 +507,7 @@ class App extends React.Component {
           ) {
             return { ...bac, state: "tumble", stateDuration: 0 };
           }
+          // Otherwise return the new x and y of the bacteria
           return {
             ...bac,
             stateDuration: bac.stateDuration + 1,
@@ -461,75 +515,164 @@ class App extends React.Component {
             locationY: newY
           };
         } else if (bac.state === "tumble") {
+          // THIS IS ONE OF THE SECTIONS THAT I THINK COULD BE GREATLY IMPROVED
           const rgb = this.checkNeighborBacteria(bac);
-          if (this.getRandomInt(5) === 4 || bac.stateDuration > 5) {
-            if (bac.color === "RX-red") {
-              let newDirection = DIRECTION_INDEXES.find(
-                d =>
-                  d.x(bac.locationX) === rgb[0].x &&
-                  d.y(bac.locationY) === rgb[0].y
-              );
-              while (newDirection.name === bac.direction) {
-                newDirection =
-                  DIRECTION_INDEXES[
-                    this.getRandomInt(DIRECTION_INDEXES.length)
-                  ];
+          // The following are the same just for each color
+          if (bac.color === "RX-red") {
+            // If this is first time in tumble
+            if (bac.stateDuration === 0 && bac.nextDir === undefined) {
+              // Find the next direction to move to
+              // DO NOT LET THE BACTERIA ALWAYS MOVE IN THE OPTIMAL DIRECTION
+              let newDirection =
+                DIRECTION_INDEXES[this.getRandomInt(DIRECTION_INDEXES.length)];
+              // GIVE IT A CHANCE TO MOVE IN THE OPTIMAL DIRECTION
+              if (
+                this.getRandomInt(RANDOMNESS_OF_TUMBLE) ===
+                RANDOMNESS_OF_TUMBLE - 1
+              ) {
+                newDirection = DIRECTION_INDEXES.find(
+                  d =>
+                    d.x(bac.locationX) === rgb[0].x &&
+                    d.y(bac.locationY) === rgb[0].y
+                );
               }
+
+              // Do not let the bacteria continue in the same direction
+              if (newDirection.name === bac.direction) {
+                const i = DIRECTION_INDEXES.indexOf(newDirection);
+                const safe = i + 1 > DIRECTION_INDEXES.length ? 0 : i + 1;
+                newDirection = DIRECTION_INDEXES[safe];
+              }
+              // return the bacteria rotated once to the right
+              const dirIndex = DIRECTION_INDEXES.indexOf(bac.direction);
+              const safeIndex =
+                dirIndex + 1 > DIRECTION_INDEXES.length ? 0 : dirIndex + 1;
               return {
                 ...bac,
-                direction: newDirection.name,
+                nextDir: newDirection,
+                stateDuration: safeIndex,
+                direction: DIRECTION_INDEXES[safeIndex].name
+              };
+            }
+            // if bacteria has turned to its new direction switch to run
+            if (bac.stateDuration === DIRECTION_INDEXES.indexOf(bac.nextDir)) {
+              return {
+                ...bac,
+                direction: bac.nextDir.name,
                 locationX: rgb[0].x,
                 locationY: rgb[0].y,
                 state: "run",
-                stateDuration: 0
-              };
-            } else if (bac.color === "RX-green") {
-              let newDirection = DIRECTION_INDEXES.find(
-                d =>
-                  d.x(bac.locationX) === rgb[1].x &&
-                  d.y(bac.locationY) === rgb[1].y
-              );
-              while (newDirection.name === bac.direction) {
-                newDirection =
-                  DIRECTION_INDEXES[
-                    this.getRandomInt(DIRECTION_INDEXES.length)
-                  ];
-              }
-              return {
-                ...bac,
-                direction: newDirection.name,
-                locationX: rgb[1].x,
-                locationY: rgb[1].y,
-                state: "run",
-                stateDuration: 0
-              };
-            } else if (bac.color === "RX-blue") {
-              let newDirection = DIRECTION_INDEXES.find(
-                d =>
-                  d.x(bac.locationX) === rgb[2].x &&
-                  d.y(bac.locationY) === rgb[2].y
-              );
-              while (newDirection.name === bac.direction) {
-                newDirection =
-                  DIRECTION_INDEXES[
-                    this.getRandomInt(DIRECTION_INDEXES.length)
-                  ];
-              }
-              return {
-                ...bac,
-                direction: newDirection.name,
-                locationX: rgb[2].x,
-                locationY: rgb[2].y,
-                state: "run",
+                nextDir: undefined,
                 stateDuration: 0
               };
             }
-          } else {
-            return { ...bac, stateDuration: bac.stateDuration + 1 };
+            // ALl fails move the direction one to right
+            return {
+              ...bac,
+              stateDuration:
+                bac.stateDuration + 1 > DIRECTION_INDEXES.length
+                  ? 0
+                  : bac.stateDuration + 1
+            };
+          } else if (bac.color === "RX-green") {
+            if (bac.stateDuration === 0 && bac.nextDir === undefined) {
+              let newDirection =
+                DIRECTION_INDEXES[this.getRandomInt(DIRECTION_INDEXES.length)];
+              if (
+                this.getRandomInt(RANDOMNESS_OF_TUMBLE) ===
+                RANDOMNESS_OF_TUMBLE - 1
+              ) {
+                newDirection = DIRECTION_INDEXES.find(
+                  d =>
+                    d.x(bac.locationX) === rgb[1].x &&
+                    d.y(bac.locationY) === rgb[1].y
+                );
+              }
+              if (newDirection.name === bac.direction) {
+                const i = DIRECTION_INDEXES.indexOf(newDirection);
+                const safe = i + 1 > DIRECTION_INDEXES.length ? 0 : i + 1;
+                newDirection = DIRECTION_INDEXES[safe];
+              }
+              const dirIndex = DIRECTION_INDEXES.indexOf(bac.direction);
+              const safeIndex =
+                dirIndex + 1 > DIRECTION_INDEXES.length ? 0 : dirIndex + 1;
+              return {
+                ...bac,
+                nextDir: newDirection,
+                stateDuration: safeIndex,
+                direction: DIRECTION_INDEXES[safeIndex].name
+              };
+            }
+            if (bac.stateDuration === DIRECTION_INDEXES.indexOf(bac.nextDir)) {
+              return {
+                ...bac,
+                direction: bac.nextDir.name,
+                locationX: rgb[1].x,
+                locationY: rgb[1].y,
+                state: "run",
+                nextDir: undefined,
+                stateDuration: 0
+              };
+            }
+            return {
+              ...bac,
+              stateDuration:
+                bac.stateDuration + 1 > DIRECTION_INDEXES.length
+                  ? 0
+                  : bac.stateDuration + 1
+            };
+          } else if (bac.color === "RX-blue") {
+            if (bac.stateDuration === 0 && bac.nextDir === undefined) {
+              let newDirection =
+                DIRECTION_INDEXES[this.getRandomInt(DIRECTION_INDEXES.length)];
+              if (
+                this.getRandomInt(RANDOMNESS_OF_TUMBLE) ===
+                RANDOMNESS_OF_TUMBLE - 1
+              ) {
+                newDirection = DIRECTION_INDEXES.find(
+                  d =>
+                    d.x(bac.locationX) === rgb[2].x &&
+                    d.y(bac.locationY) === rgb[2].y
+                );
+              }
+              if (newDirection.name === bac.direction) {
+                const i = DIRECTION_INDEXES.indexOf(newDirection);
+                const safe = i + 1 > DIRECTION_INDEXES.length ? 0 : i + 1;
+                newDirection = DIRECTION_INDEXES[safe];
+              }
+              const dirIndex = DIRECTION_INDEXES.indexOf(bac.direction);
+              const safeIndex =
+                dirIndex + 1 > DIRECTION_INDEXES.length ? 0 : dirIndex + 1;
+              return {
+                ...bac,
+                nextDir: newDirection,
+                stateDuration: safeIndex,
+                direction: DIRECTION_INDEXES[safeIndex].name
+              };
+            }
+            if (bac.stateDuration === DIRECTION_INDEXES.indexOf(bac.nextDir)) {
+              return {
+                ...bac,
+                direction: bac.nextDir.name,
+                locationX: rgb[2].x,
+                locationY: rgb[2].y,
+                state: "run",
+                nextDir: undefined,
+                stateDuration: 0
+              };
+            }
+            return {
+              ...bac,
+              stateDuration:
+                bac.stateDuration + 1 > DIRECTION_INDEXES.length
+                  ? 0
+                  : bac.stateDuration + 1
+            };
           }
-        } else {
-          return bac;
         }
+        // safety check to return bac
+        // Should never run
+        return bac;
       }
     });
 
@@ -537,23 +680,32 @@ class App extends React.Component {
   };
 
   // =========================== RUN SIM ===========================
+  // Run one step
   simIteration = () => {
     this.updateColors();
     this.bacteriaStep();
   };
 
+  // Run all of the simulation
+  // The sleep function is used to allow the results to be viewed on the front end.
+  // Sleep is set to 1000 ms this could be decreased or increased depending on the size of the board.
   simRun = async () => {
     while (!this.state.done) {
+      // Ends when the simulation is over
       this.simIteration();
       await this.sleep(1000);
     }
   };
 
+  // throttle to allow for visualization
   sleep = ms => {
     return new Promise(resolve => setTimeout(resolve, ms));
   };
 
+  // ===========
   // Gen results
+  // ===========
+  // Compute BER of each input string to output string
   bitERR = () => {
     const { payload, results } = this.state;
     const inOut = [...payload, ...results];
@@ -572,6 +724,7 @@ class App extends React.Component {
     this.setState({ BER: r });
   };
 
+  // Compute average time for all bacteria per color
   avgTime = () => {
     const { bacteria } = this.state;
     const r = bacteria.map(b => ({ ...b, time: b.end - b.start }));
@@ -603,6 +756,7 @@ class App extends React.Component {
     });
   };
 
+  // Throughput is the largest common substring of the input and output
   lCSUB = () => {
     const { payload, results } = this.state;
     const r = [];
@@ -625,7 +779,11 @@ class App extends React.Component {
     console.log(temp.toString());
     this.setState({ throughput: r });
   };
+  // ===========
+  // End results
+  // ===========
 
+  // View
   render() {
     return (
       <div

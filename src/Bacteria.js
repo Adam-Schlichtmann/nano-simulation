@@ -1,6 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 
+// view for a single bacteria
 const Bacteria = props => {
   return (
     <div
